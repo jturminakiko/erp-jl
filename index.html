@@ -395,55 +395,66 @@ function toast(msg, dur=2500) {
 // ================================================================
 // CONEXÃO COM APPS SCRIPT
 // ================================================================
-function jsonp(url) {
-  return new Promise((resolve) => {
-    const cb = 'cb_' + Math.random().toString(36).slice(2);
-    window[cb] = (data) => { delete window[cb]; document.head.removeChild(s); resolve(data); };
-    const s = document.createElement('script');
-    s.src = url + '&callback=' + cb;
-    s.onerror = () => { delete window[cb]; document.head.removeChild(s); resolve(null); };
-    document.head.appendChild(s);
-  });
-}
-
 async function api(acao, tabela, dados={}) {
   if (offline || !API_URL) return null;
   try {
     const payload = encodeURIComponent(JSON.stringify({ acao, tabela, ...dados }));
+    // Usa no-cors com fetch para contornar o redirecionamento do Google
     const url = API_URL + '?payload=' + payload;
-    const r = await jsonp(url);
-    if (!r || !r.ok) return null;
-    return r.dados;
+    const r = await fetch(url, { 
+      method: 'GET',
+      redirect: 'follow',
+      mode: 'no-cors'
+    });
+    // no-cors retorna opaque response, então usamos JSONP como fallback
+    return await jsonpCall(url);
   } catch(e) {
-    console.error('API erro:', e);
-    return null;
+    return await jsonpCall(API_URL + '?payload=' + encodeURIComponent(JSON.stringify({ acao, tabela, ...dados })));
   }
 }
 
+function jsonpCall(url) {
+  return new Promise((resolve) => {
+    const cb = '_cb' + Date.now();
+    window[cb] = (data) => {
+      delete window[cb];
+      if(s.parentNode) s.parentNode.removeChild(s);
+      resolve(data && data.ok ? data.dados : null);
+    };
+    const s = document.createElement('script');
+    s.src = url + '&callback=' + cb;
+    s.onerror = () => {
+      delete window[cb];
+      if(s.parentNode) s.parentNode.removeChild(s);
+      resolve(null);
+    };
+    setTimeout(() => {
+      if(window[cb]) { delete window[cb]; resolve(null); }
+    }, 15000);
+    document.head.appendChild(s);
+  });
+}
+
+
 async function conectar() {
   const url = document.getElementById('setup-url').value.trim();
-  if (!url) { document.getElementById('setup-erro').textContent = 'Cole a URL do Apps Script.'; return; }
+  if (!url) { document.getElementById('setup-erro').textContent = 'Cole a URL.'; return; }
   document.getElementById('setup-erro').textContent = 'Conectando...';
   API_URL = url;
   try {
-    const payload = encodeURIComponent(JSON.stringify({ acao: 'inicializar' }));
-    const r = await fetch(url + '?payload=' + payload, { method: 'GET', redirect: 'follow' });
-    const text = await r.text();
-    console.log('Resposta conexao:', text.slice(0,300));
-    const j = JSON.parse(text);
-    if (j.ok) {
+    const result = await jsonpCall(url + '?acao=inicializar');
+    if (result) {
       localStorage.setItem('finAPI', url);
       document.getElementById('setup-overlay').style.display = 'none';
       setStatus(true);
-      toast('Conectado! Planilha inicializada.');
+      toast('Conectado ao Google Sheets!');
       await carregarTudo();
       renderAll();
     } else {
-      throw new Error(j.erro || 'Resposta inesperada');
+      throw new Error('Sem resposta');
     }
   } catch(e) {
-    console.error('Erro conectar:', e);
-    document.getElementById('setup-erro').textContent = 'Erro: ' + e.message + ' — abra F12 e me mande o console';
+    document.getElementById('setup-erro').textContent = 'Erro: ' + e.message;
   }
 }
 
@@ -864,3 +875,4 @@ window.addEventListener('load', async () => {
 </script>
 </body>
 </html>
+
