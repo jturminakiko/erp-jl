@@ -1,1 +1,858 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP JL Participações</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeede8;
+    --text: #1a1a18; --text2: #6b6b67; --text3: #9c9c97;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --green: #3B6D11; --red: #A32D2D; --blue: #185FA5; --amber: #854F0B;
+    --green-bg: #EAF3DE; --red-bg: #FCEBEB; --blue-bg: #E6F1FB; --amber-bg: #FAEEDA;
+    --purple: #534AB7; --purple-bg: #EEEDFE;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); font-size: 14px; min-height: 100vh; }
+  
+  /* ── Layout ── */
+  .app-header { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 100; }
+  .app-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .app-status { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; }
+  .status-dot.ok { background: #1D9E75; }
+  .status-dot.err { background: #E24B4A; }
+  
+  nav { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 0 1.5rem; display: flex; gap: 2px; overflow-x: auto; }
+  .nb { padding: 12px 14px; font-size: 12px; font-weight: 500; color: var(--text2); background: transparent; border: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; margin-bottom: -1px; }
+  .nb:hover { color: var(--text); }
+  .nb.active { color: var(--text); border-bottom-color: var(--text); }
+  
+  .content { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+  .sec { display: none; } .sec.active { display: block; }
+  
+  /* ── Cards & Grids ── */
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 1rem; }
+  .r2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+  .mets { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .met { background: var(--bg2); border-radius: var(--radius); padding: 12px 14px; }
+  .ml { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+  .mv { font-size: 20px; font-weight: 600; }
+  .g { color: var(--green); } .r { color: var(--red); } .b { color: var(--blue); } .am { color: var(--amber); }
+  
+  /* ── Tables ── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; font-size: 12px; border-collapse: collapse; }
+  th { text-align: left; font-weight: 600; font-size: 11px; color: var(--text2); padding: 6px 8px; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+  td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg2); }
+  
+  /* ── Badges ── */
+  .bdg { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .bdg-g { background: var(--green-bg); color: var(--green); }
+  .bdg-r { background: var(--red-bg); color: var(--red); }
+  .bdg-b { background: var(--blue-bg); color: var(--blue); }
+  .bdg-a { background: var(--amber-bg); color: var(--amber); }
+  .bdg-p { background: var(--purple-bg); color: var(--purple); }
+  .bdg-gr { background: var(--bg3); color: var(--text2); }
+  
+  /* ── Forms ── */
+  .fr { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .fr-full { grid-column: 1 / -1; }
+  .fl { font-size: 11px; font-weight: 600; color: var(--text2); display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .3px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 2px rgba(83,74,183,0.12); }
+  textarea { resize: vertical; min-height: 60px; }
+  button { padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
+  button:hover { background: var(--bg2); }
+  button.primary { background: var(--purple); color: #fff; border-color: var(--purple); }
+  button.primary:hover { background: #3C3489; }
+  .btn-sm { padding: 3px 8px; font-size: 11px; }
+  
+  /* ── Progress ── */
+  .pb { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .pf { height: 100%; border-radius: 3px; transition: width .3s; }
+  
+  /* ── Tabs ── */
+  .tabs { display: flex; border-bottom: 0.5px solid var(--border); margin-bottom: 1.25rem; gap: 0; }
+  .tab { padding: 8px 14px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--text); }
+  .stab { display: none; } .stab.active { display: block; }
+  
+  /* ── Chart ── */
+  .cw { position: relative; width: 100%; }
+  .lg { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; font-size: 11px; color: var(--text2); }
+  .lg span { display: flex; align-items: center; gap: 3px; }
+  .ld { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+  
+  /* ── Setup overlay ── */
+  #setup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .setup-box { background: var(--bg); border-radius: var(--radius-lg); padding: 2rem; max-width: 480px; width: 90%; }
+  .setup-title { font-size: 17px; font-weight: 600; margin-bottom: .5rem; }
+  .setup-sub { font-size: 12px; color: var(--text2); margin-bottom: 1.25rem; line-height: 1.6; }
+  .setup-step { display: flex; gap: 10px; margin-bottom: .75rem; align-items: flex-start; font-size: 12px; color: var(--text2); }
+  .setup-num { width: 22px; height: 22px; border-radius: 50%; background: var(--purple-bg); color: var(--purple); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  
+  /* ── Loading / spinner ── */
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border2); border-top-color: var(--text2); border-radius: 50%; animation: sp .65s linear infinite; vertical-align: middle; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .loading-msg { text-align: center; padding: 2rem; color: var(--text2); font-size: 13px; }
+  
+  /* ── Stars ── */
+  .star { font-size: 15px; cursor: pointer; color: var(--border2); }
+  .star.on { color: #BA7517; }
+  
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a18; color: #fff; padding: 10px 18px; border-radius: var(--radius); font-size: 12px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 9999; }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 600px) {
+    .content { padding: 1rem; }
+    .app-header { padding: 0 1rem; }
+    nav { padding: 0 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SETUP OVERLAY -->
+<div id="setup-overlay">
+  <div class="setup-box">
+    <div class="setup-title">Configurar conexão</div>
+    <div class="setup-sub">Para salvar seus dados no Google Sheets, siga os passos no guia e cole a URL do seu Apps Script abaixo.</div>
+    <div class="setup-step"><div class="setup-num">1</div><span>Crie uma planilha no Google Drive e copie o ID da URL</span></div>
+    <div class="setup-step"><div class="setup-num">2</div><span>Abra Extensões → Apps Script, cole o Arquivo 1 e salve</span></div>
+    <div class="setup-step"><div class="setup-num">3</div><span>Implantar → Nova implantação → App da Web → Acesso: Qualquer pessoa → Copie a URL</span></div>
+    <div style="margin-top:1rem">
+      <label class="fl">URL do Apps Script (Web App)</label>
+      <input type="url" id="setup-url" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:10px">
+      <button class="primary" style="width:100%" onclick="conectar()">Conectar e inicializar planilha</button>
+    </div>
+    <div id="setup-erro" style="margin-top:8px;font-size:11px;color:var(--red)"></div>
+    <div style="margin-top:12px;text-align:center">
+      <button onclick="usarOffline()" style="font-size:11px;color:var(--text2);border:none;background:none;cursor:pointer;padding:4px">Usar offline (sem salvar no Sheets)</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="app-header">
+  <div class="app-title">ERP JL Participações</div>
+  <div class="app-status">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-txt">desconectado</span>
+    <button onclick="showSetup()" class="btn-sm" style="margin-left:4px">config</button>
+  </div>
+</div>
+
+<nav>
+  <button class="nb active" onclick="showSec('painel',this)">Painel</button>
+  <button class="nb" onclick="showSec('indicadores',this)">Indicadores</button>
+  <button class="nb" onclick="showSec('investimentos',this)">Investimentos</button>
+  <button class="nb" onclick="showSec('contaspagar',this)">Contas a Pagar</button>
+  <button class="nb" onclick="showSec('transacoes',this)">Receitas & Despesas</button>
+  <button class="nb" onclick="showSec('orcamento',this)">Orçamento</button>
+  <button class="nb" onclick="showSec('metas',this)">Metas</button>
+  <button class="nb" onclick="showSec('simulador',this)">Simulador CDB/LCA</button>
+  <button class="nb" onclick="showSec('comparativo',this)">Comparativo</button>
+</nav>
+
+<div class="content">
+
+<!-- PAINEL -->
+<div id="painel" class="sec active">
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+    <button onclick="exportExcel('carteira')">↓ Carteira (.xlsx)</button>
+    <button onclick="exportExcel('transacoes')">↓ Transações (.xlsx)</button>
+    <button onclick="exportExcel('completo')">↓ Tudo (.xlsx)</button>
+  </div>
+  <div class="mets" id="mp"></div>
+  <div class="r2">
+    <div class="card"><div class="card-title">patrimônio por categoria</div><div class="lg" id="lgpat"></div><div class="cw" style="height:200px"><canvas id="cPat"></canvas></div></div>
+    <div class="card"><div class="card-title">receita vs despesa</div><div class="cw" style="height:200px"><canvas id="cEv"></canvas></div></div>
+  </div>
+  <div class="r2">
+    <div class="card"><div class="card-title">contas a pagar — próximas</div><div id="prox-pagar"></div></div>
+    <div class="card"><div class="card-title">últimas transações</div><table id="tUlt"></table></div>
+  </div>
+</div>
+
+<!-- INDICADORES -->
+<div id="indicadores" class="sec">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--text2)">Dados do Banco Central do Brasil</span>
+    <button onclick="buscarIndicadores()" class="btn-sm">↻ Atualizar</button>
+    <span id="ind-status" style="font-size:11px;color:var(--text2)"></span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem">
+    <div class="met"><div class="ml">SELIC (meta a.a.)</div><div class="mv" id="iv-selic"><span class="spin"></span></div><div style="font-size:10px;color:var(--text3)" id="is-selic">carregando</div></div>
+    <div class="met"><div class="ml">CDI (% a.a.)</div><div class="mv" id="iv-cdi"><span class="spin"></span></div><div style="font-size:10px;color:var(--text3)" id="is-cdi">carregando</div></div>
+    <div class="met"><div class="ml">IPCA (12 meses)</div><div class="mv" id="iv-ipca"><span class="spin"></span></div><div style="font-size:10px;color:var(--text3)" id="is-ipca">carregando</div></div>
+    <div class="met"><div class="ml">Dólar (R$/USD)</div><div class="mv" id="iv-dolar"><span class="spin"></span></div><div style="font-size:10px;color:var(--text3)" id="is-dolar">carregando</div></div>
+    <div class="met"><div class="ml">IGP-M (12 meses)</div><div class="mv" id="iv-igpm"><span class="spin"></span></div><div style="font-size:10px;color:var(--text3)" id="is-igpm">carregando</div></div>
+  </div>
+  <div class="r2">
+    <div class="card"><div class="card-title">SELIC — últimos 12 meses</div><div class="cw" style="height:170px"><canvas id="cSelic"></canvas></div></div>
+    <div class="card"><div class="card-title">IPCA mensal — últimos 12 meses</div><div class="cw" style="height:170px"><canvas id="cIpca"></canvas></div></div>
+  </div>
+  <div class="card"><div class="card-title">Dólar — últimos 30 dias</div><div class="cw" style="height:150px"><canvas id="cDolar"></canvas></div></div>
+  <div class="card"><div class="card-title">seus investimentos vs mercado</div><div id="inv-vs-ind"></div></div>
+</div>
+
+<!-- INVESTIMENTOS -->
+<div id="investimentos" class="sec">
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('il',this)">carteira</div>
+    <div class="tab" onclick="showTab('in',this)">+ novo investimento</div>
+  </div>
+  <div id="il" class="stab active">
+    <div class="mets" id="minv"></div>
+    <div id="inv-list"><div class="loading-msg"><span class="spin"></span> carregando...</div></div>
+  </div>
+  <div id="in" class="stab">
+    <div class="card">
+      <div class="fr">
+        <div><label class="fl">Tipo</label><select id="inv-tipo"><option>Renda Fixa (CDB/LCA/LCI)</option><option>Ações</option><option>FII</option><option>Fundo</option><option>Imóvel</option><option>Terreno</option><option>Empresa</option><option>Outro</option></select></div>
+        <div><label class="fl">Nome</label><input type="text" id="inv-nome" placeholder="Ex: Terreno Zona Norte"></div>
+        <div><label class="fl">Valor total (R$)</label><input type="number" id="inv-total" placeholder="50000" oninput="prevP()"></div>
+        <div><label class="fl">Data início</label><input type="date" id="inv-data"></div>
+      </div>
+      <div style="height:0.5px;background:var(--border);margin:.75rem 0"></div>
+      <div class="card-title">pagamento</div>
+      <div class="fr">
+        <div><label class="fl">Modalidade</label><select id="inv-pag" onchange="toggleP()"><option value="avista">À vista</option><option value="parcelado">Parcelado + CDI</option><option value="parcelado-fixo">Parcelado fixo</option></select></div>
+        <div id="pp" style="display:none"><label class="fl">Parcelas</label><input type="number" id="inv-parc" value="10" oninput="prevP()"></div>
+        <div id="pc" style="display:none"><label class="fl">% do CDI</label><input type="number" id="inv-cdi" value="100" step="0.1" oninput="prevP()"></div>
+        <div id="pct" style="display:none"><label class="fl">CDI anual (%)</label><input type="number" id="inv-ctaxa" value="10.5" step="0.1" oninput="prevP()"></div>
+        <div id="pe" style="display:none"><label class="fl">Entrada (R$)</label><input type="number" id="inv-ent" placeholder="0" oninput="prevP()"></div>
+      </div>
+      <div style="height:0.5px;background:var(--border);margin:.75rem 0"></div>
+      <div class="card-title">expectativas</div>
+      <div class="fr">
+        <div class="fr-full"><label class="fl">Descrição da expectativa</label><textarea id="inv-exp" placeholder="Ex: Valorização de 30% em 3 anos para revenda..."></textarea></div>
+        <div><label class="fl">Retorno esperado (%)</label><input type="number" id="inv-ret" placeholder="30" step="0.1"></div>
+        <div><label class="fl">Prazo (meses)</label><input type="number" id="inv-prazo" placeholder="36"></div>
+        <div><label class="fl">Valor esperado (R$)</label><input type="number" id="inv-valexp" placeholder="65000"></div>
+      </div>
+      <button class="primary" onclick="addInv()">+ Registrar investimento</button>
+      <div id="prev-p" style="margin-top:1rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTAS A PAGAR -->
+<div id="contaspagar" class="sec">
+  <div class="mets" id="mcp"></div>
+  <div class="r2">
+    <div class="card tbl-wrap"><div class="card-title">em aberto</div><table id="tcp"></table></div>
+    <div class="card tbl-wrap"><div class="card-title">pagas</div><table id="tcpp"></table></div>
+  </div>
+</div>
+
+<!-- TRANSAÇÕES -->
+<div id="transacoes" class="sec">
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('tl',this)">histórico</div>
+    <div class="tab" onclick="showTab('tn',this)">+ nova transação</div>
+    <div class="tab" onclick="showTab('tcc',this)">centros de custo</div>
+  </div>
+  <div id="tl" class="stab active">
+    <div class="mets" id="mtr"></div>
+    <div class="r2">
+      <div class="card"><div class="card-title">por categoria</div><div class="lg" id="lgdesp"></div><div class="cw" style="height:190px"><canvas id="cDesp"></canvas></div></div>
+      <div class="card"><div class="card-title">por centro de custo</div><div class="lg" id="lgcc"></div><div class="cw" style="height:190px"><canvas id="cCC"></canvas></div></div>
+    </div>
+    <div style="text-align:right;margin-bottom:8px"><button onclick="exportExcel('transacoes')" class="btn-sm">↓ Exportar (.xlsx)</button></div>
+    <div class="card tbl-wrap"><table id="tTr"></table></div>
+  </div>
+  <div id="tn" class="stab">
+    <div class="card">
+      <div class="fr">
+        <div><label class="fl">Tipo</label><select id="tr-tipo"><option value="receita">Receita</option><option value="despesa">Despesa</option></select></div>
+        <div><label class="fl">Descrição</label><input type="text" id="tr-desc" placeholder="Salário"></div>
+        <div><label class="fl">Categoria</label><select id="tr-cat"><option>Salário</option><option>Freelance</option><option>Dividendos</option><option>Aluguel recebido</option><option>Moradia</option><option>Alimentação</option><option>Transporte</option><option>Saúde</option><option>Lazer</option><option>Educação</option><option>Outros</option></select></div>
+        <div><label class="fl">Centro de custo</label><select id="tr-cc"><option value="">— nenhum —</option></select></div>
+        <div><label class="fl">Valor (R$)</label><input type="number" id="tr-valor" placeholder="1500"></div>
+        <div><label class="fl">Data</label><input type="date" id="tr-data"></div>
+      </div>
+      <button class="primary" onclick="addTr()">+ Adicionar transação</button>
+    </div>
+  </div>
+  <div id="tcc" class="stab">
+    <div class="card">
+      <div class="fr">
+        <div><label class="fl">Nome</label><input type="text" id="cc-nome" placeholder="Ex: Família"></div>
+        <div><label class="fl">Descrição</label><input type="text" id="cc-desc"></div>
+      </div>
+      <button class="primary" onclick="addCC()">+ Adicionar centro de custo</button>
+    </div>
+    <div id="cc-list"></div>
+  </div>
+</div>
+
+<!-- ORÇAMENTO -->
+<div id="orcamento" class="sec">
+  <div class="mets" id="morc"></div>
+  <div class="card">
+    <div class="fr">
+      <div><label class="fl">Categoria</label><select id="orc-cat"><option>Moradia</option><option>Alimentação</option><option>Transporte</option><option>Saúde</option><option>Lazer</option><option>Educação</option><option>Outros</option></select></div>
+      <div><label class="fl">Limite mensal (R$)</label><input type="number" id="orc-lim" placeholder="800"></div>
+    </div>
+    <button class="primary" onclick="setOrc()">Salvar limite</button>
+  </div>
+  <div id="orc-cards"></div>
+</div>
+
+<!-- METAS -->
+<div id="metas" class="sec">
+  <div class="mets" id="mmet"></div>
+  <div class="card">
+    <div class="fr">
+      <div><label class="fl">Nome</label><input type="text" id="meta-nome" placeholder="Reserva de emergência"></div>
+      <div><label class="fl">Valor alvo (R$)</label><input type="number" id="meta-alvo"></div>
+      <div><label class="fl">Valor atual (R$)</label><input type="number" id="meta-atual"></div>
+      <div><label class="fl">Prazo</label><input type="date" id="meta-prazo"></div>
+    </div>
+    <button class="primary" onclick="addMeta()">+ Adicionar meta</button>
+  </div>
+  <div id="metas-list"></div>
+</div>
+
+<!-- SIMULADOR -->
+<div id="simulador" class="sec">
+  <div class="card">
+    <div class="card-title">simulador CDB / LCA / LCI</div>
+    <div id="sim-cdi-info" style="font-size:11px;color:var(--text2);margin-bottom:.75rem"></div>
+    <div class="fr">
+      <div><label class="fl">Valor inicial (R$)</label><input type="number" id="s-valor" value="10000" oninput="simular()"></div>
+      <div><label class="fl">CDI anual (%)</label><input type="number" id="s-cdi" value="10.5" step="0.1" oninput="simular()"></div>
+      <div><label class="fl">Prazo (meses)</label><input type="number" id="s-prazo" value="24" oninput="simular()"></div>
+      <div><label class="fl">Tipo</label><select id="s-tipo" onchange="simular()"><option value="cdb">CDB</option><option value="lca">LCA/LCI (isento IR)</option></select></div>
+    </div>
+    <div class="fr">
+      <div><label class="fl">Produto A — % CDI</label><input type="number" id="s-a" value="110" step="0.1" oninput="simular()"></div>
+      <div><label class="fl">Produto B — % CDI</label><input type="number" id="s-b" value="95" step="0.1" oninput="simular()"></div>
+      <div><label class="fl">Produto C — % CDI</label><input type="number" id="s-c" value="100" step="0.1" oninput="simular()"></div>
+    </div>
+    <div id="sim-res"></div>
+    <div class="cw" style="height:240px;margin-top:1rem"><canvas id="cSim"></canvas></div>
+  </div>
+</div>
+
+<!-- COMPARATIVO -->
+<div id="comparativo" class="sec">
+  <div class="card">
+    <div class="card-title">evolução relativa — base 100 na data de entrada</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:.75rem">Todos os investimentos normalizados para 100 no momento de entrada, para comparação direta.</p>
+    <div class="lg" id="lgcomp"></div>
+    <div class="cw" style="height:280px"><canvas id="cComp"></canvas></div>
+  </div>
+  <div class="r2">
+    <div class="card"><div class="card-title">rentabilidade acumulada (%)</div><div class="cw" style="height:220px"><canvas id="cRent"></canvas></div></div>
+    <div class="card"><div class="card-title">meu investimento vs CDI</div><div class="cw" style="height:220px"><canvas id="cVsCdi"></canvas></div></div>
+  </div>
+  <div style="text-align:right;margin-bottom:8px"><button onclick="exportExcel('comparativo')" class="btn-sm">↓ Exportar (.xlsx)</button></div>
+  <div class="card tbl-wrap"><div class="card-title">tabela de desempenho</div><table id="tComp" style="white-space:nowrap"></table></div>
+</div>
+
+</div><!-- /content -->
+<div id="toast"></div>
+
+<script>
+// ================================================================
+// CONFIGURAÇÃO — cole aqui a URL do seu Apps Script após configurar
+// ================================================================
+let API_URL = localStorage.getItem('finAPI') || '';
+let offline = false;
+
+// ================================================================
+// DADOS (memória — sincronizados com Sheets quando online)
+// ================================================================
+let DB = { investimentos:[], transacoes:[], parcelas:[], metas:[], centrosCusto:[], orcamentos:[] };
+let indicadores = { selic:null, cdi:null, ipca:null, dolar:null, igpm:null };
+let histSelic=[], histIpca=[], histDolar=[];
+let CH = {};
+
+const fmt = v => 'R$' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = (a,b) => b===0?'0.0':((a-b)/b*100).toFixed(1);
+const COLORS = ['#534AB7','#1D9E75','#D85A30','#378ADD','#BA7517','#D4537E','#639922','#5DCAA5','#E24B4A'];
+const uid = () => 'id_' + Math.random().toString(36).slice(2,10) + '_' + Date.now();
+
+function toast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ================================================================
+// CONEXÃO COM APPS SCRIPT
+// ================================================================
+async function api(acao, tabela, dados={}) {
+  if (offline || !API_URL) return null;
+  try {
+    const payload = encodeURIComponent(JSON.stringify({ acao, tabela, ...dados }));
+    const r = await fetch(API_URL + '?payload=' + payload, { method: 'GET', redirect: 'follow' });
+    const text = await r.text();
+    console.log('API resposta:', text.slice(0,200));
+    const j = JSON.parse(text);
+    if (!j.ok) throw new Error(j.erro || JSON.stringify(j));
+    return j.dados;
+  } catch(e) {
+    console.error('API erro:', e.message);
+    return null;
+  }
+}
+
+async function conectar() {
+  const url = document.getElementById('setup-url').value.trim();
+  if (!url) { document.getElementById('setup-erro').textContent = 'Cole a URL do Apps Script.'; return; }
+  document.getElementById('setup-erro').textContent = 'Conectando...';
+  API_URL = url;
+  try {
+    const payload = encodeURIComponent(JSON.stringify({ acao: 'inicializar' }));
+    const r = await fetch(url + '?payload=' + payload, { method: 'GET', redirect: 'follow' });
+    const text = await r.text();
+    console.log('Resposta conexao:', text.slice(0,300));
+    const j = JSON.parse(text);
+    if (j.ok) {
+      localStorage.setItem('finAPI', url);
+      document.getElementById('setup-overlay').style.display = 'none';
+      setStatus(true);
+      toast('Conectado! Planilha inicializada.');
+      await carregarTudo();
+      renderAll();
+    } else {
+      throw new Error(j.erro || 'Resposta inesperada');
+    }
+  } catch(e) {
+    console.error('Erro conectar:', e);
+    document.getElementById('setup-erro').textContent = 'Erro: ' + e.message + ' — abra F12 e me mande o console';
+  }
+}
+
+function usarOffline() {
+  offline = true;
+  document.getElementById('setup-overlay').style.display = 'none';
+  setStatus(false);
+  toast('Modo offline — dados salvos apenas nesta sessão.');
+  renderAll();
+}
+
+function showSetup() { document.getElementById('setup-overlay').style.display = 'flex'; }
+
+function setStatus(ok) {
+  document.getElementById('status-dot').className = 'status-dot ' + (ok?'ok':'err');
+  document.getElementById('status-txt').textContent = ok ? 'Google Sheets' : (offline?'offline':'desconectado');
+}
+
+async function carregarTudo() {
+  const tabelas = ['investimentos','transacoes','parcelas','metas','centrosCusto','orcamentos'];
+  await Promise.all(tabelas.map(async t => {
+    const r = await api('ler', t);
+    if (r) DB[t] = r;
+  }));
+}
+
+// ================================================================
+// CRUD helpers
+// ================================================================
+async function dbAdd(tabela, obj) {
+  obj.id = obj.id || uid();
+  obj.criadoEm = new Date().toISOString();
+  DB[tabela].push(obj);
+  await api('salvar', tabela, { dados: obj });
+  return obj;
+}
+async function dbUpdate(tabela, id, campos) {
+  const idx = DB[tabela].findIndex(x => x.id === id);
+  if (idx >= 0) Object.assign(DB[tabela][idx], campos);
+  await api('atualizar', tabela, { id, dados: campos });
+}
+async function dbDelete(tabela, id) {
+  DB[tabela] = DB[tabela].filter(x => x.id !== id);
+  await api('deletar', tabela, { id });
+}
+
+// ================================================================
+// PARCELAS CDI
+// ================================================================
+function gerarParcelas(total, n, percCdi, cdiAnual, dataInicio, entrada, invId, invNome) {
+  const ps = [];
+  const base = (total - (entrada||0)) / n;
+  const cdiM = percCdi > 0 ? Math.pow(1+(cdiAnual*percCdi/100/100), 1/12) - 1 : 0;
+  if (entrada && entrada > 0)
+    ps.push({ invId, invNome, num:0, desc:'Entrada', valor:entrada, venc:dataInicio, correcao:0, pago:'false' });
+  for (let i=1; i<=n; i++) {
+    const d = new Date(dataInicio); d.setMonth(d.getMonth()+i);
+    const cor = cdiM > 0 ? base*(Math.pow(1+cdiM,i)-1) : 0;
+    ps.push({ invId, invNome, num:i, desc:'Parcela '+i+'/'+n, valor:parseFloat((base+cor).toFixed(2)), venc:d.toISOString().slice(0,10), correcao:parseFloat(cor.toFixed(2)), pago:'false' });
+  }
+  return ps;
+}
+
+// ================================================================
+// INDICADORES BCB
+// ================================================================
+async function buscarIndicadores() {
+  document.getElementById('ind-status').innerHTML = '<span class="spin"></span> buscando...';
+  const hoje = new Date(); const ant = new Date(hoje); ant.setFullYear(ant.getFullYear()-1);
+  const fmtD = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const d1 = fmtD(ant), d2 = fmtD(hoje);
+  const tryF = async url => { try { const r=await fetch(url); return r.ok?await r.json():null; } catch { return null; } };
+  const [rS,rC,rI,rD,rG] = await Promise.all([
+    tryF(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados?formato=json&dataInicial=${d1}&dataFinal=${d2}`),
+    tryF(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=${d1}&dataFinal=${d2}`),
+    tryF(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=${d1}&dataFinal=${d2}`),
+    tryF(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=json&dataInicial=${d1}&dataFinal=${d2}`),
+    tryF(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.189/dados?formato=json&dataInicial=${d1}&dataFinal=${d2}`),
+  ]);
+  if (rS&&rS.length) { indicadores.selic=parseFloat(rS[rS.length-1].valor); histSelic=rS.slice(-12); }
+  if (rC&&rC.length) indicadores.cdi = parseFloat(rC[rC.length-1].valor);
+  if (rI&&rI.length) { histIpca=rI.slice(-12); const ac=histIpca.reduce((a,x)=>a*(1+parseFloat(x.valor)/100),1)-1; indicadores.ipca=parseFloat((ac*100).toFixed(2)); }
+  if (rD&&rD.length) { histDolar=rD.slice(-30); indicadores.dolar=parseFloat(rD[rD.length-1].valor); }
+  if (rG&&rG.length) { const ac=rG.slice(-12).reduce((a,x)=>a*(1+parseFloat(x.valor)/100),1)-1; indicadores.igpm=parseFloat((ac*100).toFixed(2)); }
+  const ok = Object.values(indicadores).some(v=>v!==null);
+  document.getElementById('ind-status').textContent = ok ? 'Atualizado às '+new Date().toLocaleTimeString('pt-BR') : 'Sem conexão com BCB';
+  renderIndicadores();
+  if (indicadores.cdi) {
+    document.getElementById('s-cdi').value = indicadores.cdi.toFixed(2);
+    document.getElementById('sim-cdi-info').textContent = 'CDI carregado do Banco Central: '+indicadores.cdi.toFixed(2)+'% a.a.';
+  }
+  simular();
+}
+
+// ================================================================
+// NAVEGAÇÃO
+// ================================================================
+function showSec(id, btn) {
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  renderAll();
+}
+function showTab(id, el) {
+  const p = el.closest('.sec');
+  p.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  p.querySelectorAll('.stab').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active'); document.getElementById(id).classList.add('active');
+  renderAll();
+}
+function toggleP() {
+  const v = document.getElementById('inv-pag').value;
+  ['pp','pe'].forEach(id=>document.getElementById(id).style.display=v!=='avista'?'block':'none');
+  ['pc','pct'].forEach(id=>document.getElementById(id).style.display=v==='parcelado'?'block':'none');
+  prevP();
+}
+function prevP() {
+  const v = document.getElementById('inv-pag').value; if(v==='avista'){document.getElementById('prev-p').innerHTML='';return;}
+  const total=parseFloat(document.getElementById('inv-total').value)||0; if(!total) return;
+  const n=parseInt(document.getElementById('inv-parc').value)||10;
+  const cdi=parseFloat(document.getElementById('inv-cdi').value)||100;
+  const taxa=parseFloat(document.getElementById('inv-ctaxa').value)||10.5;
+  const ent=parseFloat(document.getElementById('inv-ent').value)||0;
+  const data=document.getElementById('inv-data').value||new Date().toISOString().slice(0,10);
+  const ps=v==='parcelado'?gerarParcelas(total,n,cdi,taxa,data,ent,'',''):gerarParcelas(total,n,0,0,data,ent,'','');
+  const tot=ps.reduce((a,p)=>a+p.valor,0);
+  document.getElementById('prev-p').innerHTML=`<div style="background:var(--bg2);border-radius:var(--radius);padding:12px"><p style="font-size:12px;font-weight:600;margin-bottom:8px">Total a pagar: ${fmt(tot)}</p><div class="tbl-wrap"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th style="text-align:right">Valor</th><th style="text-align:right">Correção CDI</th></tr></thead><tbody>`+ps.slice(0,6).map(p=>`<tr><td>${p.desc}</td><td>${p.venc}</td><td style="text-align:right">${fmt(p.valor)}</td><td style="text-align:right;color:var(--amber)">${p.correcao>0?'+'+fmt(p.correcao):'—'}</td></tr>`).join('')+(ps.length>6?`<tr><td colspan="4" style="color:var(--text2);font-size:11px">... e mais ${ps.length-6} parcelas</td></tr>`:'')+`</tbody></table></div></div>`;
+}
+
+// ================================================================
+// AÇÕES DO USUÁRIO
+// ================================================================
+async function addInv() {
+  const tipo=document.getElementById('inv-tipo').value, nome=document.getElementById('inv-nome').value.trim();
+  const total=parseFloat(document.getElementById('inv-total').value)||0;
+  if(!nome||!total){toast('Preencha nome e valor.');return;}
+  const data=document.getElementById('inv-data').value||new Date().toISOString().slice(0,10);
+  const pag=document.getElementById('inv-pag').value;
+  const n=parseInt(document.getElementById('inv-parc').value)||10;
+  const cdi=parseFloat(document.getElementById('inv-cdi').value)||100;
+  const taxa=parseFloat(document.getElementById('inv-ctaxa').value)||10.5;
+  const ent=parseFloat(document.getElementById('inv-ent').value)||0;
+  const inv = await dbAdd('investimentos',{tipo,nome,total,atual:total,data,pagamento:pag,exp:document.getElementById('inv-exp').value.trim(),retExp:parseFloat(document.getElementById('inv-ret').value)||0,prazoExp:parseInt(document.getElementById('inv-prazo').value)||0,valExp:parseFloat(document.getElementById('inv-valexp').value)||0,stars:3});
+  if (pag!=='avista') {
+    const ps = pag==='parcelado'?gerarParcelas(total,n,cdi,taxa,data,ent,inv.id,nome):gerarParcelas(total,n,0,0,data,ent,inv.id,nome);
+    for (const p of ps) await dbAdd('parcelas', p);
+  }
+  ['inv-nome','inv-total','inv-data','inv-parc','inv-cdi','inv-ctaxa','inv-ent','inv-exp','inv-ret','inv-prazo','inv-valexp'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('prev-p').innerHTML='';
+  toast('Investimento registrado!');
+  renderAll();
+  showTab('il',document.querySelector('#investimentos .tab'));
+}
+async function setStars(id,v){ await dbUpdate('investimentos',id,{stars:v}); renderAll(); }
+async function pagarP(id){ await dbUpdate('parcelas',id,{pago:'true'}); toast('Parcela quitada!'); renderAll(); }
+
+async function addTr() {
+  const tipo=document.getElementById('tr-tipo').value, desc=document.getElementById('tr-desc').value.trim();
+  const cat=document.getElementById('tr-cat').value, cc=document.getElementById('tr-cc').value;
+  const valor=parseFloat(document.getElementById('tr-valor').value)||0;
+  const data=document.getElementById('tr-data').value||new Date().toISOString().slice(0,10);
+  if(!desc||!valor){toast('Preencha descrição e valor.');return;}
+  await dbAdd('transacoes',{tipo,desc,cat,cc,valor,data});
+  document.getElementById('tr-desc').value=''; document.getElementById('tr-valor').value='';
+  toast('Transação registrada!'); renderAll();
+}
+async function addCC() {
+  const nome=document.getElementById('cc-nome').value.trim();
+  if(!nome){toast('Informe o nome.');return;}
+  if(!DB.centrosCusto.find(c=>c.nome===nome)) await dbAdd('centrosCusto',{nome,descricao:document.getElementById('cc-desc').value});
+  document.getElementById('cc-nome').value=''; document.getElementById('cc-desc').value='';
+  toast('Centro de custo adicionado!'); renderAll();
+}
+async function setOrc() {
+  const cat=document.getElementById('orc-cat').value, lim=parseFloat(document.getElementById('orc-lim').value)||0;
+  if(!lim){toast('Informe o limite.');return;}
+  const ex = DB.orcamentos.find(o=>o.categoria===cat);
+  if(ex) await dbUpdate('orcamentos',ex.id,{limite:lim});
+  else await dbAdd('orcamentos',{categoria:cat,limite:lim});
+  document.getElementById('orc-lim').value=''; toast('Orçamento salvo!'); renderAll();
+}
+async function addMeta() {
+  const nome=document.getElementById('meta-nome').value.trim();
+  const alvo=parseFloat(document.getElementById('meta-alvo').value)||0;
+  const atual=parseFloat(document.getElementById('meta-atual').value)||0;
+  const prazo=document.getElementById('meta-prazo').value||'2025-12-31';
+  if(!nome||!alvo){toast('Preencha nome e alvo.');return;}
+  await dbAdd('metas',{nome,alvo,atual,prazo});
+  ['meta-nome','meta-alvo','meta-atual'].forEach(id=>document.getElementById(id).value='');
+  toast('Meta adicionada!'); renderAll();
+}
+
+// ================================================================
+// SIMULADOR
+// ================================================================
+function calcIR(m){if(m<=6)return .225;if(m<=12)return .2;if(m<=24)return .175;return .15;}
+function simular(){
+  const v=parseFloat(document.getElementById('s-valor').value)||10000;
+  const cdi=parseFloat(document.getElementById('s-cdi').value)||10.5;
+  const prazo=parseInt(document.getElementById('s-prazo').value)||24;
+  const tipo=document.getElementById('s-tipo').value;
+  const percs=[parseFloat(document.getElementById('s-a').value)||110,parseFloat(document.getElementById('s-b').value)||95,parseFloat(document.getElementById('s-c').value)||100];
+  const ir=tipo==='cdb'?calcIR(prazo):0;
+  const labels=Array.from({length:prazo},(_,i)=>'M'+(i+1));
+  const datasets=percs.map((p,pi)=>{
+    const cdiM=Math.pow(1+cdi/100,1/12)-1;
+    return{label:'Produto '+'ABC'[pi]+' '+p+'%',data:Array.from({length:prazo},(_,m)=>parseFloat((v+v*(Math.pow(1+cdiM*p/100,m+1)-1)*(1-ir)).toFixed(2))),borderColor:COLORS[pi],backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:.3};
+  });
+  const finals=percs.map((p,pi)=>{const cdiM=Math.pow(1+cdi/100,1/12)-1;const br=v*(Math.pow(1+cdiM*p/100,prazo)-1);const liq=br*(1-ir);return{p,liq:v+liq,rendLiq:liq};});
+  document.getElementById('sim-res').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:1rem">`+finals.map((f,i)=>`<div class="met"><div class="ml">Produto ${'ABC'[i]} — ${f.p}% CDI</div><div class="mv b">${fmt(f.liq)}</div><div style="font-size:11px;color:var(--green)">+${fmt(f.rendLiq)}</div><div style="font-size:10px;color:var(--text2)">${tipo==='cdb'?'IR: '+Math.round(calcIR(prazo)*100)+'%':'Isento IR'}</div></div>`).join('')+'</div>';
+  dc('cSim');
+  CH['cSim']=new Chart(document.getElementById('cSim'),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:10}}},y:{ticks:{callback:v=>fmt(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}}});
+}
+
+// ================================================================
+// EXPORTAR EXCEL
+// ================================================================
+function exportExcel(tipo){
+  const wb=XLSX.utils.book_new();
+  if(tipo==='carteira'||tipo==='completo'){
+    const rows=[['Investimento','Tipo','Data','Aporte','Atual','Ganho','Rent.%','Pagamento','Expectativa','Retorno Esp.%','Prazo(m)','Valor Esp.','Stars']];
+    DB.investimentos.forEach(i=>{const g=i.atual-i.total;rows.push([i.nome,i.tipo,i.data,i.total,i.atual,parseFloat(g.toFixed(2)),parseFloat(pct(i.atual,i.total)),i.pagamento,i.exp,i.retExp,i.prazoExp,i.valExp,i.stars+'★']);});
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Carteira');
+    const cp=[['Investimento','Parcela','Vencimento','Valor','Correção CDI','Status']];
+    DB.parcelas.forEach(p=>cp.push([p.invNome,p.desc,p.venc,p.valor,p.correcao,p.pago==='true'||p.pago===true?'Pago':'Em aberto']));
+    if(cp.length>1)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cp),'Contas a Pagar');
+  }
+  if(tipo==='transacoes'||tipo==='completo'){
+    const tr=[['Data','Tipo','Descrição','Categoria','Centro de Custo','Valor']];
+    [...DB.transacoes].sort((a,b)=>b.data.localeCompare(a.data)).forEach(t=>tr.push([t.data,t.tipo,t.desc,t.cat,t.cc||'—',(t.tipo==='receita'?1:-1)*t.valor]));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(tr),'Transações');
+  }
+  if(tipo==='comparativo'||tipo==='completo'){
+    const cdiAtual=indicadores.cdi||10.5;
+    const cm=[['Investimento','Tipo','Início','Aporte','Atual','Ganho','Rent.%','CDI eq.%','Acima CDI','Aderência%']];
+    DB.investimentos.forEach(inv=>{
+      const g=inv.atual-inv.total,gp=parseFloat(pct(inv.atual,inv.total));
+      const m=Math.max(1,Math.round((Date.now()-new Date(inv.data))/(1000*60*60*24*30)));
+      const cdiEq=((Math.pow(1+cdiAtual/100,m/12)-1)*100).toFixed(1);
+      const retEsp=inv.prazoExp>0?inv.retExp*(m/inv.prazoExp):0;
+      const ader=retEsp>0?(gp/retEsp*100).toFixed(1):'—';
+      cm.push([inv.nome,inv.tipo,inv.data,inv.total,inv.atual,parseFloat(g.toFixed(2)),gp,parseFloat(cdiEq),gp>=parseFloat(cdiEq)?'Sim':'Não',ader]);
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cm),'Comparativo');
+  }
+  if(tipo==='completo'&&indicadores.selic!==null){
+    const ind=[['Indicador','Valor'],['SELIC',(indicadores.selic||'—')+'%'],['CDI',(indicadores.cdi||'—')+'%'],['IPCA',(indicadores.ipca||'—')+'%'],['Dólar','R$'+(indicadores.dolar||'—')],['IGP-M',(indicadores.igpm||'—')+'%']];
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ind),'Indicadores');
+  }
+  XLSX.writeFile(wb,'financas_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+// ================================================================
+// RENDERS
+// ================================================================
+function dc(id){if(CH[id]){CH[id].destroy();delete CH[id];}}
+
+function renderAll(){renderPainel();renderInv();renderCP();renderTrans();renderOrcamento();renderMetas();renderComparativo();renderCCList();}
+
+function renderPainel(){
+  const invs=DB.investimentos, tr=DB.transacoes, parc=DB.parcelas;
+  const tInv=invs.reduce((a,i)=>a+(parseFloat(i.atual)||0),0);
+  const tAp=invs.reduce((a,i)=>a+(parseFloat(i.total)||0),0);
+  const rec=tr.filter(t=>t.tipo==='receita').reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
+  const desp=tr.filter(t=>t.tipo==='despesa').reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
+  const ab=parc.filter(p=>p.pago==='false'||p.pago===false);
+  document.getElementById('mp').innerHTML=`
+    <div class="met"><div class="ml">patrimônio investido</div><div class="mv b">${fmt(tInv)}</div></div>
+    <div class="met"><div class="ml">ganho total</div><div class="mv g">+${fmt(tInv-tAp)}</div></div>
+    <div class="met"><div class="ml">saldo do mês</div><div class="mv ${rec-desp>=0?'g':'r'}">${fmt(rec-desp)}</div></div>
+    <div class="met"><div class="ml">contas a pagar</div><div class="mv am">${fmt(ab.reduce((a,p)=>a+(parseFloat(p.valor)||0),0))}</div></div>
+    ${indicadores.selic!==null?`<div class="met"><div class="ml">SELIC</div><div class="mv">${indicadores.selic.toFixed(2)}%</div></div>`:''}
+    ${indicadores.dolar!==null?`<div class="met"><div class="ml">Dólar</div><div class="mv">R$${indicadores.dolar.toFixed(2)}</div></div>`:''}
+  `;
+  const tipos=[...new Set(invs.map(i=>i.tipo))];
+  const tots=tipos.map(t=>invs.filter(i=>i.tipo===t).reduce((a,i)=>a+(parseFloat(i.atual)||0),0));
+  dc('cPat');
+  document.getElementById('lgpat').innerHTML=tipos.map((t,i)=>`<span><span class="ld" style="background:${COLORS[i%COLORS.length]}"></span>${t}</span>`).join('');
+  if(tots.length) CH['cPat']=new Chart(document.getElementById('cPat'),{type:'doughnut',data:{labels:tipos,datasets:[{data:tots,backgroundColor:COLORS,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}}}});
+  dc('cEv');
+  CH['cEv']=new Chart(document.getElementById('cEv'),{type:'bar',data:{labels:['Dez','Jan','Fev','Mar','Abr'],datasets:[{label:'Receita',data:[0,0,0,0,rec],backgroundColor:'#5DCAA5',borderRadius:3},{label:'Despesa',data:[0,0,0,0,desp],backgroundColor:'#F0997B',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>fmt(v),font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+  const prox=ab.sort((a,b)=>a.venc.localeCompare(b.venc)).slice(0,5);
+  document.getElementById('prox-pagar').innerHTML=prox.length?`<table><thead><tr><th>Investimento</th><th>Parcela</th><th>Venc.</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>`+prox.map(p=>`<tr><td>${p.invNome}</td><td>${p.desc}</td><td>${p.venc}</td><td style="text-align:right">${fmt(p.valor)}</td><td><button class="btn-sm" onclick="pagarP('${p.id}')">Pagar</button></td></tr>`).join('')+'</tbody></table>':'<p style="font-size:12px;color:var(--text2)">Sem contas em aberto.</p>';
+  const ult=[...tr].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
+  document.getElementById('tUlt').innerHTML=`<thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead><tbody>`+ult.map(t=>`<tr><td>${t.data}</td><td>${t.desc}</td><td style="text-align:right;color:${t.tipo==='receita'?'var(--green)':'var(--red)'}">${t.tipo==='receita'?'+':'-'}${fmt(t.valor)}</td></tr>`).join('')+'</tbody>';
+}
+
+function renderInv(){
+  const invs=DB.investimentos;
+  const tot=invs.reduce((a,i)=>a+(parseFloat(i.atual)||0),0);
+  const ap=invs.reduce((a,i)=>a+(parseFloat(i.total)||0),0);
+  document.getElementById('minv').innerHTML=`<div class="met"><div class="ml">total atual</div><div class="mv b">${fmt(tot)}</div></div><div class="met"><div class="ml">aporte total</div><div class="mv">${fmt(ap)}</div></div><div class="met"><div class="ml">rentabilidade</div><div class="mv g">+${fmt(tot-ap)} (${pct(tot,ap)}%)</div></div>`;
+  document.getElementById('inv-list').innerHTML=invs.length?invs.map(inv=>{
+    const g=parseFloat(inv.atual)-parseFloat(inv.total),gp=parseFloat(pct(inv.atual,inv.total));
+    const m=Math.max(1,Math.round((Date.now()-new Date(inv.data))/(1000*60*60*24*30)));
+    const retEsp=inv.prazoExp>0?inv.retExp*(m/inv.prazoExp):0;
+    const suc=retEsp>0?(gp/retEsp*100).toFixed(0):null;
+    const ab=DB.parcelas.filter(p=>(p.pago==='false'||p.pago===false)&&p.invId===inv.id).length;
+    return`<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem;margin-bottom:.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+        <div><div style="font-size:14px;font-weight:600">${inv.nome}</div><div style="font-size:11px;color:var(--text2);margin-top:2px">${inv.data} · <span class="bdg bdg-gr">${inv.tipo}</span>${ab>0?` · <span style="color:var(--amber);font-size:11px">${ab} parcelas abertas</span>`:''}</div></div>
+        <div style="text-align:right"><div style="font-size:18px;font-weight:600;color:${g>=0?'var(--green)':'var(--red)'}">${fmt(parseFloat(inv.atual))}</div><div style="font-size:11px;color:${g>=0?'var(--green)':'var(--red)'}">${g>=0?'+':''}${fmt(g)} (${gp}%)</div></div>
+      </div>
+      ${inv.exp?`<div style="font-size:11px;color:var(--text2);font-style:italic;margin-top:3px">"${inv.exp}"</div>`:''}
+      ${inv.retExp?`<div style="margin-top:6px;font-size:11px"><span style="color:var(--text2)">Meta: +${inv.retExp}% em ${inv.prazoExp}m → ${fmt(inv.valExp)}</span><div class="pb"><div class="pf" style="width:${Math.min(100,Math.abs(gp)/inv.retExp*100).toFixed(0)}%;background:${suc>=80?'#1D9E75':suc>=40?'#BA7517':'#E24B4A'}"></div></div><span style="font-size:10px;color:var(--text2)">Aderência: ${suc!==null?suc+'%':'—'}</span></div>`:''}
+      <div style="display:flex;align-items:center;gap:5px;margin-top:6px"><span style="font-size:11px;color:var(--text2)">avaliação:</span>${[1,2,3,4,5].map(s=>`<span class="star ${s<=inv.stars?'on':''}" onclick="setStars('${inv.id}',${s})">★</span>`).join('')}</div>
+    </div>`;
+  }).join(''):'<p style="color:var(--text2);font-size:12px">Nenhum investimento cadastrado.</p>';
+}
+
+function renderCP(){
+  const ab=DB.parcelas.filter(p=>p.pago==='false'||p.pago===false);
+  const pg=DB.parcelas.filter(p=>p.pago==='true'||p.pago===true);
+  document.getElementById('mcp').innerHTML=`<div class="met"><div class="ml">total em aberto</div><div class="mv am">${fmt(ab.reduce((a,p)=>a+(parseFloat(p.valor)||0),0))}</div></div><div class="met"><div class="ml">já pago</div><div class="mv g">${fmt(pg.reduce((a,p)=>a+(parseFloat(p.valor)||0),0))}</div></div><div class="met"><div class="ml">parcelas abertas</div><div class="mv">${ab.length}</div></div>`;
+  const mk=(rows,btn)=>`<table><thead><tr><th>Investimento</th><th>Parcela</th><th>Vencimento</th><th style="text-align:right">Valor</th>${btn?'<th></th>':''}</tr></thead><tbody>`+rows.sort((a,b)=>a.venc.localeCompare(b.venc)).map(p=>`<tr><td>${p.invNome}</td><td>${p.desc}</td><td>${p.venc}</td><td style="text-align:right">${fmt(p.valor)}</td>${btn?`<td><button class="btn-sm" onclick="pagarP('${p.id}')">Pagar</button></td>`:''}</tr>`).join('')+'</tbody></table>';
+  document.getElementById('tcp').innerHTML=ab.length?mk(ab,true):'<p style="color:var(--text2);font-size:12px">Sem parcelas em aberto.</p>';
+  document.getElementById('tcpp').innerHTML=pg.length?mk(pg,false):'<p style="color:var(--text2);font-size:12px">Nenhuma parcela paga.</p>';
+}
+
+function renderTrans(){
+  const tr=DB.transacoes;
+  const rec=tr.filter(t=>t.tipo==='receita').reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
+  const desp=tr.filter(t=>t.tipo==='despesa').reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
+  document.getElementById('mtr').innerHTML=`<div class="met"><div class="ml">receitas</div><div class="mv g">${fmt(rec)}</div></div><div class="met"><div class="ml">despesas</div><div class="mv r">${fmt(desp)}</div></div><div class="met"><div class="ml">saldo</div><div class="mv ${rec-desp>=0?'g':'r'}">${fmt(rec-desp)}</div></div>`;
+  const sel=document.getElementById('tr-cc'), cur=sel.value;
+  sel.innerHTML='<option value="">— nenhum —</option>'+DB.centrosCusto.map(c=>`<option${c.nome===cur?' selected':''}>${c.nome}</option>`).join('');
+  const cats=[...new Set(tr.filter(t=>t.tipo==='despesa').map(t=>t.cat))];
+  const vC=cats.map(c=>tr.filter(t=>t.tipo==='despesa'&&t.cat===c).reduce((a,t)=>a+(parseFloat(t.valor)||0),0));
+  dc('cDesp'); document.getElementById('lgdesp').innerHTML=cats.map((c,i)=>`<span><span class="ld" style="background:${COLORS[i%COLORS.length]}"></span>${c}</span>`).join('');
+  if(vC.length) CH['cDesp']=new Chart(document.getElementById('cDesp'),{type:'doughnut',data:{labels:cats,datasets:[{data:vC,backgroundColor:COLORS,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}}}});
+  const ccsD=[...new Set(tr.filter(t=>t.tipo==='despesa'&&t.cc).map(t=>t.cc))];
+  const vCC=ccsD.map(c=>tr.filter(t=>t.tipo==='despesa'&&t.cc===c).reduce((a,t)=>a+(parseFloat(t.valor)||0),0));
+  dc('cCC'); document.getElementById('lgcc').innerHTML=ccsD.map((c,i)=>`<span><span class="ld" style="background:${COLORS[i%COLORS.length]}"></span>${c}</span>`).join('');
+  if(vCC.length) CH['cCC']=new Chart(document.getElementById('cCC'),{type:'doughnut',data:{labels:ccsD,datasets:[{data:vCC,backgroundColor:COLORS,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}}}});
+  document.getElementById('tTr').innerHTML=`<thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>C.Custo</th><th style="text-align:right">Valor</th></tr></thead><tbody>`+[...tr].sort((a,b)=>b.data.localeCompare(a.data)).map(t=>`<tr><td>${t.data}</td><td>${t.desc}</td><td><span class="bdg ${t.tipo==='receita'?'bdg-g':'bdg-r'}">${t.cat}</span></td><td>${t.cc?`<span class="bdg bdg-p">${t.cc}</span>`:''}</td><td style="text-align:right;color:${t.tipo==='receita'?'var(--green)':'var(--red)'}">${t.tipo==='receita'?'+':'-'}${fmt(t.valor)}</td></tr>`).join('')+'</tbody>';
+}
+
+function renderCCList(){
+  document.getElementById('cc-list').innerHTML=DB.centrosCusto.length?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:.5rem">`+DB.centrosCusto.map(c=>{const tot=DB.transacoes.filter(t=>t.cc===c.nome&&t.tipo==='despesa').reduce((a,t)=>a+(parseFloat(t.valor)||0),0);return`<div class="card" style="flex:1;min-width:140px"><div style="font-size:13px;font-weight:600">${c.nome}</div><div style="font-size:11px;color:var(--text2);margin-top:3px">Total: ${fmt(tot)}</div></div>`;}).join('')+'</div>':'';
+}
+
+function renderOrcamento(){
+  const dm={};DB.transacoes.filter(t=>t.tipo==='despesa').forEach(t=>{dm[t.cat]=(dm[t.cat]||0)+(parseFloat(t.valor)||0);});
+  const orcMap={};DB.orcamentos.forEach(o=>{orcMap[o.categoria]=parseFloat(o.limite)||0;});
+  const tl=Object.values(orcMap).reduce((a,v)=>a+v,0),tg=Object.values(dm).reduce((a,v)=>a+v,0);
+  document.getElementById('morc').innerHTML=`<div class="met"><div class="ml">limite total</div><div class="mv">${fmt(tl)}</div></div><div class="met"><div class="ml">gasto</div><div class="mv r">${fmt(tg)}</div></div><div class="met"><div class="ml">disponível</div><div class="mv g">${fmt(tl-tg)}</div></div>`;
+  document.getElementById('orc-cards').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">`+Object.keys(orcMap).map(cat=>{const lim=orcMap[cat],g=dm[cat]||0,p=Math.min(100,Math.round(g/lim*100)),ov=g>lim;return`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;font-weight:600">${cat}</span><span style="font-size:11px;color:${ov?'var(--red)':'var(--text2)'}">${fmt(g)} / ${fmt(lim)}</span></div><div class="pb"><div class="pf" style="width:${p}%;background:${ov?'#E24B4A':'#1D9E75'}"></div></div><div style="font-size:10px;color:var(--text2);margin-top:3px">${p}%${ov?' — acima do limite':''}</div></div>`;}).join('')+'</div>';
+}
+
+function renderMetas(){
+  const con=DB.metas.filter(m=>parseFloat(m.atual)>=parseFloat(m.alvo)).length;
+  document.getElementById('mmet').innerHTML=`<div class="met"><div class="ml">metas</div><div class="mv">${DB.metas.length}</div></div><div class="met"><div class="ml">concluídas</div><div class="mv g">${con}</div></div>`;
+  document.getElementById('metas-list').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">`+DB.metas.map((m,i)=>{const p=Math.min(100,Math.round(parseFloat(m.atual)/parseFloat(m.alvo)*100));return`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:13px;font-weight:600">${m.nome}</span><span class="bdg ${p>=100?'bdg-g':'bdg-b'}">${p}%</span></div><div style="font-size:12px">${fmt(m.atual)} <span style="color:var(--text2)">/ ${fmt(m.alvo)}</span></div><div class="pb"><div class="pf" style="width:${p}%;background:${COLORS[i%COLORS.length]}"></div></div><div style="font-size:10px;color:var(--text2);margin-top:3px">${p<100?'Falta '+fmt(parseFloat(m.alvo)-parseFloat(m.atual)):'Meta atingida!'} · ${m.prazo}</div></div>`;}).join('')+'</div>';
+}
+
+function renderIndicadores(){
+  const s=indicadores.selic,c=indicadores.cdi,ip=indicadores.ipca,d=indicadores.dolar,ig=indicadores.igpm;
+  [['selic',s,'% a.a.'],['cdi',c,'% a.a.'],['ipca',ip,'% 12m'],['dolar',d?'R$'+d.toFixed(4):null,'cotação'],['igpm',ig,'% 12m']].forEach(([k,v,sub])=>{
+    document.getElementById('iv-'+k).textContent=v!==null?String(v)+(typeof v==='number'&&k!=='dolar'?'%':''):'—';
+    document.getElementById('is-'+k).textContent=v!==null?sub:'sem dados';
+  });
+  dc('cSelic');dc('cIpca');dc('cDolar');
+  if(histSelic.length) CH['cSelic']=new Chart(document.getElementById('cSelic'),{type:'line',data:{labels:histSelic.map(x=>x.data.slice(0,5)),datasets:[{data:histSelic.map(x=>parseFloat(x.valor)),borderColor:'#534AB7',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:6,font:{size:10}}},y:{ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+  if(histIpca.length) CH['cIpca']=new Chart(document.getElementById('cIpca'),{type:'bar',data:{labels:histIpca.map(x=>x.data.slice(3,10)),datasets:[{data:histIpca.map(x=>parseFloat(x.valor)),backgroundColor:histIpca.map(x=>parseFloat(x.valor)>=0?'#5DCAA5':'#F0997B'),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:6,font:{size:10}}},y:{ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+  if(histDolar.length) CH['cDolar']=new Chart(document.getElementById('cDolar'),{type:'line',data:{labels:histDolar.map(x=>x.data.slice(0,5)),datasets:[{data:histDolar.map(x=>parseFloat(x.valor)),borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,.07)',borderWidth:2,pointRadius:0,tension:.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:10}}},y:{ticks:{callback:v=>'R$'+v.toFixed(2),font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+  const cdiAtual=indicadores.cdi||10.5, ipca12=indicadores.ipca||4.5;
+  document.getElementById('inv-vs-ind').innerHTML=DB.investimentos.length?`<table><thead><tr><th>Investimento</th><th style="text-align:right">Rent.%</th><th style="text-align:right">CDI eq.</th><th style="text-align:right">IPCA eq.</th><th>Resultado</th></tr></thead><tbody>`+DB.investimentos.map(inv=>{
+    const m=Math.max(1,Math.round((Date.now()-new Date(inv.data))/(1000*60*60*24*30)));
+    const gp=parseFloat(pct(inv.atual,inv.total));
+    const cdiEq=((Math.pow(1+cdiAtual/100,m/12)-1)*100).toFixed(1);
+    const ipcaEq=((Math.pow(1+ipca12/100,m/12)-1)*100).toFixed(1);
+    return`<tr><td>${inv.nome}</td><td style="text-align:right;color:${gp>=0?'var(--green)':'var(--red)'}">${gp}%</td><td style="text-align:right">${cdiEq}%</td><td style="text-align:right">${ipcaEq}%</td><td><span class="bdg ${gp>=parseFloat(cdiEq)?'bdg-g':'bdg-r'}">${gp>=parseFloat(cdiEq)?'acima CDI':'abaixo CDI'}</span></td></tr>`;
+  }).join('')+'</tbody></table>':'<p style="font-size:12px;color:var(--text2)">Cadastre investimentos para ver a comparação.</p>';
+}
+
+function renderComparativo(){
+  const invs=DB.investimentos, hoje=new Date();
+  if(!invs.length) return;
+  const ds=invs.map((inv,i)=>{
+    const m=Math.max(1,Math.round((hoje-new Date(inv.data))/(1000*60*60*24*30)));
+    return{inv,data:Array.from({length:m+1},(_,j)=>parseFloat((100*(1+(parseFloat(inv.atual)-parseFloat(inv.total))/parseFloat(inv.total)*(j/m))).toFixed(2))),color:COLORS[i%COLORS.length],m};
+  });
+  const maxL=Math.max(...ds.map(d=>d.data.length));
+  const allL=Array.from({length:maxL},(_,i)=>'M'+i);
+  dc('cComp'); document.getElementById('lgcomp').innerHTML=ds.map(d=>`<span><span class="ld" style="background:${d.color}"></span>${d.inv.nome}</span>`).join('');
+  CH['cComp']=new Chart(document.getElementById('cComp'),{type:'line',data:{labels:allL,datasets:ds.map(d=>({label:d.inv.nome,data:d.data.concat(Array(maxL-d.data.length).fill(null)),borderColor:d.color,backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:.3,spanGaps:false}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,font:{size:10}}},y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+  const rentD=invs.map(i=>parseFloat(pct(i.atual,i.total)));
+  dc('cRent');
+  CH['cRent']=new Chart(document.getElementById('cRent'),{type:'bar',data:{labels:invs.map(i=>i.nome.length>15?i.nome.slice(0,15)+'…':i.nome),datasets:[{data:rentD,backgroundColor:rentD.map(v=>v>=0?'#5DCAA5':'#F0997B'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10},autoSkip:false,maxRotation:20}},y:{ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+  const cdiAtual=indicadores.cdi||10.5;
+  const vsCdi=invs.map(inv=>{const m=Math.max(1,Math.round((Date.now()-new Date(inv.data))/(1000*60*60*24*30)));return parseFloat(((Math.pow(1+cdiAtual/100,m/12)-1)*100).toFixed(1));});
+  dc('cVsCdi');
+  CH['cVsCdi']=new Chart(document.getElementById('cVsCdi'),{type:'bar',data:{labels:invs.map(i=>i.nome.length>12?i.nome.slice(0,12)+'…':i.nome),datasets:[{label:'Investimento',data:rentD,backgroundColor:'#534AB7',borderRadius:3},{label:'CDI equivalente',data:vsCdi,backgroundColor:'rgba(55,138,221,.4)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10},boxWidth:10}}},scales:{x:{grid:{display:false},ticks:{font:{size:10},maxRotation:20}},y:{ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+  document.getElementById('tComp').innerHTML=`<thead><tr><th>Investimento</th><th>Início</th><th style="text-align:right">Aporte</th><th style="text-align:right">Atual</th><th style="text-align:right">Rent.%</th><th style="text-align:right">CDI eq.%</th><th>vs CDI</th><th>Aderência</th></tr></thead><tbody>`+invs.map((inv,i)=>{
+    const g=parseFloat(inv.atual)-parseFloat(inv.total),gp=parseFloat(pct(inv.atual,inv.total));
+    const m=Math.max(1,Math.round((Date.now()-new Date(inv.data))/(1000*60*60*24*30)));
+    const retEsp=inv.prazoExp>0?inv.retExp*(m/inv.prazoExp):0;
+    const ader=retEsp>0?(gp/retEsp*100).toFixed(1)+'%':'—';
+    const ok=gp>=vsCdi[i];
+    return`<tr><td>${inv.nome}</td><td>${inv.data}</td><td style="text-align:right">${fmt(inv.total)}</td><td style="text-align:right">${fmt(inv.atual)}</td><td style="text-align:right;color:${gp>=0?'var(--green)':'var(--red)'}">${gp}%</td><td style="text-align:right">${vsCdi[i]}%</td><td><span class="bdg ${ok?'bdg-g':'bdg-r'}">${ok?'acima':'abaixo'}</span></td><td style="color:${ader!=='—'?(parseFloat(ader)>=80?'var(--green)':parseFloat(ader)>=40?'var(--amber)':'var(--red)'):'var(--text2)'}">${ader}</td></tr>`;
+  }).join('')+'</tbody>';
+}
+
+// ================================================================
+// INIT
+// ================================================================
+window.addEventListener('load', async () => {
+  if (API_URL) {
+    document.getElementById('setup-overlay').style.display = 'none';
+    setStatus(true);
+    await carregarTudo();
+  }
+  renderAll();
+  buscarIndicadores();
+  simular();
+});
+</script>
+</body>
+</html>
 
